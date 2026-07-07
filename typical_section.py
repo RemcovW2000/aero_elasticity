@@ -1,10 +1,12 @@
 import dataclasses
+from socket import send_fds
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 @dataclasses.dataclass(frozen=True)
-class TypicalSectionParams:
+class TypicalSectionDynamicParams:
     a: float
     x_theta: float
     x_beta: float
@@ -21,14 +23,25 @@ class TypicalSectionParams:
     K_theta: float
     K_beta: float
 
+@dataclasses.dataclass(frozen=True)
+class TypicalSectionAeroParams:
+    Cl_alpha: float
+    Cl_beta: float
+    Cm_ac_beta: float
+    Cm_beta: float
+
+    S: float
+
 
 class TypicalSection:
-    def __init__(self, params: TypicalSectionParams):
-        self.params = params
+    def __init__(self, dynamic_params: TypicalSectionDynamicParams, aero_params: TypicalSectionAeroParams | None = None):
+        self.dynamic_params = dynamic_params
+
+        self.aero_params = aero_params
 
     def get_mass_matrix(self)-> np.ndarray:
         """Calculate mass matrix for a typical section."""
-        p = self.params
+        p = self.dynamic_params
         mass = p.m_airfoil + p.m_flap
 
         I_t_1 = p.m_airfoil * p.x_theta**2 * p.b**2
@@ -53,7 +66,7 @@ class TypicalSection:
 
     def get_stifness_matrix(self)-> np.ndarray:
         """Calculate stifness matrix for a typical section."""
-        p=self.params
+        p=self.dynamic_params
         return np.diag([p.K_h, p.K_theta, p.K_beta])
 
     def calculate_natural_frequencies(self)-> np.ndarray:
@@ -70,7 +83,7 @@ class TypicalSection:
 
     def calculate_uncoupled_natural_frequencies(self)-> np.ndarray:
         """Calculate uncoupled natural frequencies for a typical section."""
-        p = self.params
+        p = self.dynamic_params
         uncoupled_natural_frequencies = np.array([
             np.sqrt(p.K_h / (p.m_airfoil + p.m_flap)),
             np.sqrt(p.K_theta / (p.I_airfoil + p.I_flap + p.m_airfoil * p.x_theta**2 * p.b**2 + (p.c-p.a + p.x_beta)**2 * p.b**2 * p.m_flap)),
@@ -78,8 +91,39 @@ class TypicalSection:
         ])
         return uncoupled_natural_frequencies
 
+    def get_aero_stifness_tilde(self) -> np.ndarray:
+        """
+        Calculate aero stiffness matrix for a typical section.
+        """
+        p_a = self.aero_params
+        p_d = self.dynamic_params
+        return np.array(
+            [
+                [0, -p_a.S * p_a.Cl_alpha],
+                [0, p_a.S * p_a.Cl_alpha * (0.5 + p_d.a) * p_d.b],
+            ]
+        )
+
+    def calculate_aero_natural_frequencies(self, q: float) -> np.ndarray:
+        """
+        Calculate natural frequencies for a typical section with aerodynamic loads.
+
+        Calculate a reduced system -> only taking into account theta and h as degrees
+        of freedom.
+        """
+        M = self.get_mass_matrix()[:2, :2]
+        K = self.get_stifness_matrix()[:2, :2]
+        K_tilde = self.get_aero_stifness_tilde()
+
+        # Solve the generalized eigenvalue problem
+        eigenvalues, eigenvectors = np.linalg.eig(np.linalg.inv(M) @ (K - q*K_tilde))
+
+        # Natural frequencies are the square roots of the eigenvalues
+        natural_frequencies = np.sqrt(np.abs(eigenvalues))
+        return natural_frequencies
+
 if __name__ == "__main__":
-    params = TypicalSectionParams(
+    params = TypicalSectionDynamicParams(
         m_airfoil=1.567,
         m_flap=0.0,
         I_airfoil=1.0,
@@ -94,7 +138,18 @@ if __name__ == "__main__":
         K_beta=0.0,
     )
 
-    section = TypicalSection(params)
+    aero_params = TypicalSectionAeroParams(
+        Cl_alpha=2 * np.pi,
+        Cl_beta=0.2,
+        Cm_ac_beta=0.0,
+        Cm_beta=0.0,
+        S=1.0
+    )
+
+    section = TypicalSection(params, aero_params)
     print(section.calculate_natural_frequencies())
 
-    print(section.calculate_uncoupled_natural_frequencies())
+    vs = np.linspace(0, 100, 10000)
+    freqs = [section.calculate_aero_natural_frequencies(0.5*1.225*v**2) for v in vs]
+    plt.plot(vs, freqs)
+    plt.show()
