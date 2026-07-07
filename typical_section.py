@@ -50,10 +50,11 @@ class TypicalSection:
 
         I_theta = I_t_1 + I_t_2 + I_t_3
 
-        I_beta = p.I_flap
+        # I_flap is about the flap CG -> shift to the hinge (parallel axis)
+        I_beta = p.I_flap + p.m_flap * p.x_beta**2 * p.b**2
 
         S_theta = p.x_theta * p.b * p.m_airfoil + (p.c-p.a + p.x_beta) * p.b * p.m_flap
-        S_beta = p.m_flap * p.x_beta * p.b
+        S_beta = p.m_flap * p.x_beta * p.b * p.b
 
         m_2_3 = I_beta + (p.c-p.a) * p.b * S_beta
         return np.array(
@@ -94,7 +95,7 @@ class TypicalSection:
         uncoupled_natural_frequencies = np.array([
             np.sqrt(p.K_h / (p.m_airfoil + p.m_flap)),
             np.sqrt(p.K_theta / (p.I_airfoil + p.I_flap + p.m_airfoil * p.x_theta**2 * p.b**2 + (p.c-p.a + p.x_beta)**2 * p.b**2 * p.m_flap)),
-            np.sqrt(p.K_beta / (p.I_flap))
+            np.sqrt(p.K_beta / (p.I_flap + p.m_flap * p.x_beta**2 * p.b**2))
         ])
         return uncoupled_natural_frequencies
 
