@@ -9,7 +9,7 @@ params = TypicalSectionDynamicParams(
     I_airfoil=1.0,
     I_flap=0.01,
     b=0.127,
-    a=-0.5,
+    a=-0.0,
     c=0.5,
     x_theta=-0.5,
     x_beta=0.1,
@@ -28,5 +28,5 @@ aero_params = TypicalSectionAeroParams(
 
 section = TypicalSection(params, aero_params)
 
-monolithic_static_solution = section.monolithic_static_solution_x_f(1.225*30*0.5, 0)
-print(monolithic_static_solution)
+q = 0.5*1.225*30**2
+static_deformation, static_force = section.monolithic_static_solution_x_f(q, 0, x_0=np.array([[0],[0.01]]))
