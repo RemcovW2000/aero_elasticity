@@ -139,27 +139,39 @@ class TypicalSection:
         natural_frequencies = np.sqrt(np.abs(eigenvalues))
         return natural_frequencies, eigenvectors
 
-    def monolithic_static_solution_x_f(self, q: float, beta: float, x_0: np.ndarray = np.array([[0],[0]])) -> Tuple[np.ndarray, np.ndarray]:
+    def calculate_aero_loads_at_position(self, q, x_0: np.ndarray) -> np.ndarray:
         """
-        Calculate the monolithic static solution for a typical section.
+        Calculate (external) aerodynamic loads for a typical section at given shape
+        using relations found in lecture 3.
+
+        x_0 = np.array([[h], [theta], [beta]])
+        returns external force:
+        F_ext = np.array([[F_z], [M_theta]]
+        """
+        p_a = self.aero_params
+        p_d = self.dynamic_params
+
+        # Calculate the external aerodynamic load not dependent on theta and h
+        force_for_start_deformation = q * x_0 * np.array([[-p_a.S * p_a.Cl_alpha],
+                                                          [p_a.S * p_a.Cl_alpha * (
+                                                                      0.5 + p_d.a) * p_d.b]])
+        beta = x_0[2]
+        force_due_to_beta = q * beta * np.array([[p_a.S * p_a.Cl_beta],
+                                              [p_a.S * p_a.Cl_beta * (
+                                                          0.5 + p_d.a) * p_d.b + p_a.S * p_a.Cm_ac_beta * 2 * p_d.b]])
+        constant = q * np.array([[0], [p_a.S * p_a.Cm_ac * 2 * p_d.b]])
+
+        return force_for_start_deformation + force_due_to_beta + constant
+
+    def calculate_monolithic_static_solution_x_f(self, q: float, external_load: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate the monolithic static solution for a typical section at applied load.
 
         Use relations: (K_structural - qK_tilde_aero)x = F_a_0, F_a_1 = F_a_0 + q*K_tilde_aero
         F_a_0 is external aerodynamic load not dependent on theta and h.
 
         Returns a tuple of (deformation, force)
         """
-        p_a = self.aero_params
-        p_d = self.dynamic_params
-
-        # Calculate the external aerodynamic load not dependent on theta and h
-        force_for_start_deformation = q*x_0*np.array([[-p_a.S*p_a.Cl_alpha],
-                                                      [p_a.S*p_a.Cl_alpha*(0.5 + p_d.a) * p_d.b]])
-        force_due_to_b = q*beta*np.array([[p_a.S*p_a.Cl_beta],
-                                          [p_a.S*p_a.Cl_beta * (0.5 + p_d.a) * p_d.b + p_a.S*p_a.Cm_ac_beta * 2 * p_d.b]])
-        constant = q*np.array([[0], [p_a.S * p_a.Cm_ac*2*p_d.b]])
-
-        external_aero_force = force_for_start_deformation + force_due_to_b + constant
-
         # Calculate the aero stiffness matrix
         K_tilde = self.get_aero_stifness_tilde()
 
@@ -167,6 +179,38 @@ class TypicalSection:
         K = self.get_stifness_matrix()[:2, :2]
 
         # Solve for the deformation vector
-        deformation_vector = np.linalg.solve(K - q*K_tilde, external_aero_force)
-        F_a_1 = external_aero_force + q*K_tilde@deformation_vector
+        deformation_vector = np.linalg.solve(K - q*K_tilde, external_load)
+        F_a_1 = external_load + q*K_tilde@deformation_vector
         return deformation_vector, F_a_1
+
+    def calculate_elastic_deformation(self, F_ext: np.ndarray) -> np.ndarray:
+        """
+        Calculate the deflection for a typical section at given aerodynamic load.
+        """
+        K = self.get_stifness_matrix()[:2, :2]
+        x = np.linalg.solve(K, F_ext)
+        return x
+
+    def calculate_iterative_static_solution_x_f(self, q: float, external_load: np.ndarray, tol: float = 1e-10, max_iter: int = 100) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate the monolithic static solution for a typical section at applied load using an iterative approach.
+
+        Use relations: (K_structural - qK_tilde_aero)x = F_a_0, F_a_1 = F_a_0 + q*K_tilde_aero
+        F_a_0 is external aerodynamic load not dependent on theta and h.
+
+        Returns a tuple of (deformation, force)
+        """
+        initial_deformation = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
+        deformation_vector = initial_deformation
+        for i in range(max_iter):
+            external_load = external_load + q*self.get_aero_stifness_tilde()@deformation_vector
+
+            new_deformation_vector = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
+
+            # Check for convergence
+            if np.linalg.norm(new_deformation_vector - deformation_vector) < tol:
+                break
+
+            deformation_vector = new_deformation_vector
+
+        return deformation_vector, external_load
