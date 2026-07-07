@@ -183,14 +183,6 @@ class TypicalSection:
         F_a_1 = external_load + q*K_tilde@deformation_vector
         return deformation_vector, F_a_1
 
-    def calculate_elastic_deformation(self, F_ext: np.ndarray) -> np.ndarray:
-        """
-        Calculate the deflection for a typical section at given aerodynamic load.
-        """
-        K = self.get_stifness_matrix()[:2, :2]
-        x = np.linalg.solve(K, F_ext)
-        return x
-
     def calculate_iterative_static_solution_x_f(self, q: float, external_load: np.ndarray, tol: float = 1e-10, max_iter: int = 100) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate the monolithic static solution for a typical section at applied load using an iterative approach.
@@ -202,8 +194,10 @@ class TypicalSection:
         """
         initial_deformation = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
         deformation_vector = initial_deformation
+        loads = []
         for i in range(max_iter):
             external_load = external_load + q*self.get_aero_stifness_tilde()@deformation_vector
+            loads.append(external_load)
 
             new_deformation_vector = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
 
@@ -213,4 +207,4 @@ class TypicalSection:
 
             deformation_vector = new_deformation_vector
 
-        return deformation_vector, external_load
+        return deformation_vector, external_load, loads
