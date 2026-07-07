@@ -69,8 +69,15 @@ class TypicalSection:
         p=self.dynamic_params
         return np.diag([p.K_h, p.K_theta, p.K_beta])
 
-    def calculate_natural_frequencies(self)-> np.ndarray:
-        """Calculate natural frequencies for a typical section."""
+    def calculate_natural_frequencies(self) -> tuple[np.ndarray, np.ndarray]:
+        """Calculate natural frequencies and eigenmodes for a typical section.
+
+        Returns
+        -------
+        natural_frequencies : (n,) array, natural_frequencies[j] for mode j
+        eigenvectors : (n, n) array, eigenvectors[:, j] is the mode shape for
+            natural_frequencies[j]
+        """
         M = self.get_mass_matrix()
         K = self.get_stifness_matrix()
 
@@ -79,7 +86,7 @@ class TypicalSection:
 
         # Natural frequencies are the square roots of the eigenvalues
         natural_frequencies = np.sqrt(np.abs(eigenvalues))
-        return natural_frequencies
+        return natural_frequencies, eigenvectors
 
     def calculate_uncoupled_natural_frequencies(self)-> np.ndarray:
         """Calculate uncoupled natural frequencies for a typical section."""
@@ -104,12 +111,19 @@ class TypicalSection:
             ]
         )
 
-    def calculate_aero_natural_frequencies(self, q: float) -> np.ndarray:
+    def calculate_aero_natural_frequencies(self, q: float) -> tuple[np.ndarray, np.ndarray]:
         """
-        Calculate natural frequencies for a typical section with aerodynamic loads.
+        Calculate natural frequencies and eigenmodes for a typical section with
+        aerodynamic loads.
 
         Calculate a reduced system -> only taking into account theta and h as degrees
         of freedom.
+
+        Returns
+        -------
+        natural_frequencies : (2,) array, natural_frequencies[j] for mode j
+        eigenvectors : (2, 2) array, eigenvectors[:, j] = [h, theta] mode shape
+            for natural_frequencies[j]
         """
         M = self.get_mass_matrix()[:2, :2]
         K = self.get_stifness_matrix()[:2, :2]
@@ -120,7 +134,7 @@ class TypicalSection:
 
         # Natural frequencies are the square roots of the eigenvalues
         natural_frequencies = np.sqrt(np.abs(eigenvalues))
-        return natural_frequencies
+        return natural_frequencies, eigenvectors
 
 if __name__ == "__main__":
     params = TypicalSectionDynamicParams(
@@ -147,9 +161,55 @@ if __name__ == "__main__":
     )
 
     section = TypicalSection(params, aero_params)
-    print(section.calculate_natural_frequencies())
+    freqs0, modes0 = section.calculate_natural_frequencies()
+    print("natural frequencies:", freqs0)
+    print("eigenmodes:\n", modes0)
 
-    vs = np.linspace(0, 100, 10000)
-    freqs = [section.calculate_aero_natural_frequencies(0.5*1.225*v**2) for v in vs]
-    plt.plot(vs, freqs)
+    rho = 1.225
+    vs = np.linspace(0, 100, 500)
+
+    # sweep velocity, tracking each mode by eigenvector continuity so the two
+    # curves stay smooth instead of flipping (np.linalg.eig does not order its
+    # output). freqs[i, j] / vecs[i, :, j] belong to the same tracked mode j.
+    freqs = np.zeros((len(vs), 2))
+    vecs = np.zeros((len(vs), 2, 2))
+    prev = None
+    for i, v in enumerate(vs):
+        f, V = section.calculate_aero_natural_frequencies(0.5 * rho * v**2)
+        V = V.real / np.linalg.norm(V.real, axis=0)  # unit-normalise columns
+
+        if prev is None:
+            order = np.argsort(f)  # start ascending in frequency
+        else:
+            overlap = np.abs(prev.T @ V)             # [prev_mode, cur_mode]
+            order = [int(np.argmax(overlap[j])) for j in range(2)]
+            if order[0] == order[1]:
+                order = list(np.argsort(f))
+        f, V = f[order], V[:, order]
+
+        if prev is not None:                         # keep sign continuous
+            for j in range(2):
+                if np.dot(prev[:, j], V[:, j]) < 0:
+                    V[:, j] *= -1
+
+        freqs[i], vecs[i], prev = f, V, V.copy()
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    colors = ["tab:blue", "tab:red"]
+    sc = None
+    for j in range(2):
+        omega = freqs[:, j]     # x
+        h = vecs[:, 0, j]       # y
+        theta = vecs[:, 1, j]   # z
+        ax.plot(omega, h, theta, color=colors[j], alpha=0.4, lw=1,
+                label=f"mode {j + 1}")
+        sc = ax.scatter(omega, h, theta, c=vs, cmap="viridis", s=10)
+
+    ax.set_xlabel("natural frequency $\\omega$ [rad/s]")
+    ax.set_ylabel("eigenvector h-component")
+    ax.set_zlabel(r"eigenvector $\theta$-component")
+    fig.colorbar(sc, ax=ax, shrink=0.6, pad=0.1, label="velocity [m/s]")
+    ax.legend()
+    fig.tight_layout()
     plt.show()
