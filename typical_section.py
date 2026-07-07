@@ -1,5 +1,6 @@
 import dataclasses
 from socket import send_fds
+from typing import Tuple
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -31,6 +32,7 @@ class TypicalSectionAeroParams:
     Cm_beta: float
 
     S: float
+    Cm_ac: float = 0.0
 
 
 class TypicalSection:
@@ -136,6 +138,41 @@ class TypicalSection:
         # Natural frequencies are the square roots of the eigenvalues
         natural_frequencies = np.sqrt(np.abs(eigenvalues))
         return natural_frequencies, eigenvectors
+
+    def monolithic_static_solution_x_f(self, q: float, beta: float, x_0: np.ndarray = np.array([0,0])) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate the monolithic static solution for a typical section.
+
+        Use relations: (K_structural - qK_tilde_aero)x = F_a_0, F_a_1 = F_a_0 + q*K_tilde_aero
+        F_a_0 is external aerodynamic load not dependent on theta and h.
+
+        Returns a tuple of (deformation, force)
+        """
+        p_a = self.aero_params
+        p_d = self.dynamic_params
+
+        # Calculate the external aerodynamic load not dependent on theta and h
+        force_for_start_deformation = q*x_0*np.array([-p_a.S*p_a.Cl_alpha, p_a.S*p_a.Cl_alpha*(0.5 + p_d.a) * p_d.b])
+        force_due_to_b = q*beta*np.array(
+            [
+                p_a.S*p_a.Cl_beta,
+                p_a.S*p_a.Cl_beta * (0.5 + p_d.a) * p_d.b + p_a.S*p_a.Cm_ac_beta * 2 * p_d.b
+            ]
+        )
+        constant = q*np.array([0, p_a.S * p_a.Cm_ac*2*p_d.b])
+
+        external_aero_force = force_for_start_deformation + force_due_to_b + constant
+
+        # Calculate the aero stiffness matrix
+        K_tilde = self.get_aero_stifness_tilde()
+
+        # Calculate the structural stiffness matrix
+        K = self.get_stifness_matrix()[:2, :2]
+
+        # Solve for the deformation vector
+        deformation_vector = np.linalg.solve(K - q*K_tilde, external_aero_force)
+        F_a_1 = external_aero_force + q*K_tilde*deformation_vector
+        return deformation_vector, F_a_1
 
 if __name__ == "__main__":
     params = TypicalSectionDynamicParams(
