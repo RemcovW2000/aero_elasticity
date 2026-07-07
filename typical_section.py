@@ -53,7 +53,7 @@ class TypicalSection:
         I_beta = p.I_flap
 
         S_theta = p.x_theta * p.b * p.m_airfoil + (p.c-p.a + p.x_beta) * p.b * p.m_flap
-        S_beta = p.m_flap * p.x_beta
+        S_beta = p.m_flap * p.x_beta * p.b
 
         m_2_3 = I_beta + (p.c-p.a) * p.b * S_beta
         return np.array(
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     print("eigenmodes:\n", modes0)
 
     rho = 1.225
-    vs = np.linspace(0, 100, 500)
+    vs = np.linspace(0, 100, 50)
 
     # sweep velocity, tracking each mode by eigenvector continuity so the two
     # curves stay smooth instead of flipping (np.linalg.eig does not order its
