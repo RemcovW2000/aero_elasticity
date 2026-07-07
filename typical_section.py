@@ -192,19 +192,25 @@ class TypicalSection:
 
         Returns a tuple of (deformation, force)
         """
-        initial_deformation = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
-        deformation_vector = initial_deformation
-        loads = []
-        for i in range(max_iter):
-            external_load = external_load + q*self.get_aero_stifness_tilde()@deformation_vector
-            loads.append(external_load)
+        K = self.get_stifness_matrix()[:2, :2]
+        K_tilde = self.get_aero_stifness_tilde()
+        F_0 = external_load  # original external load, kept fixed
 
-            new_deformation_vector = np.linalg.solve(self.get_stifness_matrix()[:2, :2], external_load)
+        deformation_vector = np.linalg.solve(K, F_0)  # initial guess, no aero feedback
+        loads = []
+        total_load = F_0
+        for i in range(max_iter):
+            # rebuild the aero load from the CURRENT deformation, add to the ORIGINAL F_0
+            total_load = F_0 + q * K_tilde @ deformation_vector
+            loads.append(total_load)
+
+            new_deformation_vector = np.linalg.solve(K, total_load)
 
             # Check for convergence
             if np.linalg.norm(new_deformation_vector - deformation_vector) < tol:
+                deformation_vector = new_deformation_vector
                 break
 
             deformation_vector = new_deformation_vector
 
-        return deformation_vector, external_load, loads
+        return deformation_vector, total_load, loads
