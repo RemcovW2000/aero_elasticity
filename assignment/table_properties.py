@@ -2,6 +2,9 @@
 Parameters from table 1 of paper.
 """
 import numpy as np
+from matplotlib import pyplot as plt
+
+from plot_airfoil import plot_airfoil
 
 omega_h = 50 # rad/s
 omega_theta = 100 # rad/s
@@ -56,6 +59,23 @@ coupled_beta_mode = eigenvectors[:, beta_index]
 print("coupled eigenvectors: heave_mode, theta_mode, and beta_mode: ")
 print(np.real(coupled_heave_mode), np.real(coupled_theta_mode), np.real(coupled_beta_mode))
 
-heave_mode = np.array([1, 0, 0])
-theta_mode = np.array([1, 0, 0])
-beta_mode = np.array([1, 0, 0])
+# --- plot the unit deformation of each coupled mode (eigenvector * 1) ---
+# note: the state vector is (h/b, theta, beta) per Eq. (2.9) of the paper,
+# so eigenvector component 0 is h/b, not h -> multiply by b to get h.
+modes = {
+    "heave-dominated": coupled_heave_mode,
+    "theta-dominated": coupled_theta_mode,
+    "beta-dominated": coupled_beta_mode,
+}
+
+fig, axes = plt.subplots(len(modes), 1, figsize=(8, 9))
+for ax, (name, mode) in zip(axes, modes.items()):
+    h_over_b, theta, beta = np.real(mode)
+    plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.6", label="reference")
+    plot_airfoil(b, a, c, x_theta, x_beta, h=h_over_b * b, theta=theta, beta=beta,
+                 ax=ax, show_undeformed=False, color="tab:red", label="unit mode")
+    ax.set_title(f"{name} mode (unit eigenvector)")
+    ax.legend(loc="upper right", fontsize=8)
+
+fig.tight_layout()
+plt.show()
