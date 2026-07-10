@@ -34,7 +34,8 @@ K_matrix = m_s * b**2 * np.diag([omega_h**2, r_theta_sq * omega_theta**2, r_beta
 
 # find eigenfrequencies:
 # coupled:
-eigenvalues, eigenvectors = np.linalg.eig(np.linalg.inv(M_matrix) @ K_matrix)
+eigenvalues_sq, eigenvectors = np.linalg.eig(np.linalg.inv(M_matrix) @ K_matrix)
+eigenvalues = np.sqrt(eigenvalues_sq)
 print("eigenvalues:")
 print(eigenvalues)
 print("eigenvectors: ")
