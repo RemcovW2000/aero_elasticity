@@ -36,7 +36,22 @@ K_matrix = m_s * b**2 * np.diag([omega_h**2, r_theta_sq * omega_theta**2, r_beta
 # coupled:
 eigenvalues_sq, eigenvectors = np.linalg.eig(np.linalg.inv(M_matrix) @ K_matrix)
 eigenvalues = np.sqrt(eigenvalues_sq)
-print("eigenvalues:")
-print(eigenvalues)
-print("eigenvectors: ")
-print(eigenvectors)
+print("coupled eigenvalues:")
+
+h_index = np.argmin(eigenvalues)
+h_freq = eigenvalues[h_index]
+
+beta_index = np.argmax(eigenvalues)
+beta_freq = eigenvalues[beta_index]
+
+theta_index = next(i for i in range(len(eigenvalues)) if i not in (h_index, beta_index))
+theta_freq = eigenvalues[theta_index]
+print('coupled: [omega_h, omega_theta, omega_beta]:')
+print(np.real(h_freq), np.real(theta_freq), np.real(beta_freq))
+
+print("coupled eigenvectors: ")
+heave_mode = eigenvectors[:, h_index]
+theta_mode = eigenvectors[:, theta_index]
+beta_mode = eigenvectors[:, beta_index]
+print("coupled eigenvectors: ")
+print(np.real(heave_mode), np.real(theta_mode), np.real(beta_mode))
