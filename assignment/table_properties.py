@@ -50,8 +50,12 @@ print('coupled: [omega_h, omega_theta, omega_beta]:')
 print(np.real(h_freq), np.real(theta_freq), np.real(beta_freq))
 
 print("coupled eigenvectors: ")
-heave_mode = eigenvectors[:, h_index]
-theta_mode = eigenvectors[:, theta_index]
-beta_mode = eigenvectors[:, beta_index]
-print("coupled eigenvectors: ")
-print(np.real(heave_mode), np.real(theta_mode), np.real(beta_mode))
+coupled_heave_mode = eigenvectors[:, h_index]
+coupled_theta_mode = eigenvectors[:, theta_index]
+coupled_beta_mode = eigenvectors[:, beta_index]
+print("coupled eigenvectors: heave_mode, theta_mode, and beta_mode: ")
+print(np.real(coupled_heave_mode), np.real(coupled_theta_mode), np.real(coupled_beta_mode))
+
+heave_mode = np.array([1, 0, 0])
+theta_mode = np.array([1, 0, 0])
+beta_mode = np.array([1, 0, 0])
