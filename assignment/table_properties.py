@@ -13,13 +13,14 @@ b = 1.0
 c = 0.6
 
 x_theta = 0.2
-x_beta = 0.025
+x_beta = -0.025
 
 r_theta_sq = 0.25
 r_beta_sq = 0.00625
 
 # not from paper:
-m_s = 1
+rho = 1.225
+m_s = mu*np.pi*rho*b**2
 
 M_matrix = m_s * b**2 * np.array(
     [
@@ -29,9 +30,12 @@ M_matrix = m_s * b**2 * np.array(
     ]
 )
 
-K_matrix = m_s * b**2 * np.diag([omega_h**2, omega_theta**2, omega_beta**2])
+K_matrix = m_s * b**2 * np.diag([omega_h**2, r_theta_sq * omega_theta**2, r_beta_sq * omega_beta**2])
 
 # find eigenfrequencies:
-# Solve the generalized eigenvalue problem
+# coupled:
 eigenvalues, eigenvectors = np.linalg.eig(np.linalg.inv(M_matrix) @ K_matrix)
-print("eigenvalues:", eigenvalues)
+print("eigenvalues:")
+print(eigenvalues)
+print("eigenvectors: ")
+print(eigenvectors)
