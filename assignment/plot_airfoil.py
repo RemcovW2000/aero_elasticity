@@ -95,13 +95,20 @@ def _outline(b: float, c: float, thickness: float, n_main: int = 50, n_flap: int
 def plot_airfoil(b: float, a: float, c: float, x_theta: float | None = None,
                   x_beta: float | None = None, h: float = 0.0, theta: float = 0.0,
                   beta: float = 0.0, thickness: float = 0.10, ax: plt.Axes | None = None,
-                  show_undeformed: bool = True, color: str = "tab:blue",
-                  label: str | None = None) -> plt.Axes:
+                  show_undeformed: bool = True, show_markers: bool = True,
+                  color: str = "tab:blue", label: str | None = None) -> plt.Axes:
     """
-    Plot a typical-section airfoil (thin main body + hinged flap) with its
-    key reference points (LE, TE, EA, hinge, CG, flap CG), in a deformed
-    state given by (h, theta, beta). Pass h=theta=beta=0 for the reference
-    (undeformed) shape.
+    Plot a typical-section airfoil (thin main body + hinged flap), in a
+    deformed state given by (h, theta, beta). Pass h=theta=beta=0 for the
+    reference (undeformed) shape.
+
+    If `show_markers` is True, the EA, hinge, CG and flap CG points are
+    marked (CG / flap CG only if `x_theta` / `x_beta` are given). Each
+    marker is given a `label` so a single `ax.legend()` call after plotting
+    both the reference and the deformed shape shows every marker meaning
+    once, rather than repeating text next to each point. Typically you'd
+    call this once with `show_markers=False` for a plain reference outline,
+    and once with `show_markers=True` for the deformed shape.
     """
     if ax is None:
         _, ax = plt.subplots(figsize=(7, 3.5))
@@ -130,21 +137,19 @@ def plot_airfoil(b: float, a: float, c: float, x_theta: float | None = None,
     ax.plot(flap_outline[:, 0], flap_outline[:, 1], color=color, lw=1.5, zorder=3,
             label=label)
 
-    # reference points, each deformed the same way as the surface it belongs to
-    points = {"LE": (np.array([-b, 0.0]), False),
-              "TE": (np.array([b, 0.0]), True),
-              "EA": (np.array([a * b, 0.0]), False),
-              "hinge": (np.array([c * b, 0.0]), False)}
-    if x_theta is not None:
-        points["CG"] = (np.array([(a + x_theta) * b, 0.0]), False)
-    if x_beta is not None:
-        points["flap CG"] = (np.array([(c + x_beta) * b, 0.0]), True)
+    if show_markers:
+        # reference points, each deformed the same way as the surface it belongs to
+        points = {"EA": (np.array([a * b, 0.0]), False),
+                  "hinge": (np.array([c * b, 0.0]), False)}
+        if x_theta is not None:
+            points["CG"] = (np.array([(a + x_theta) * b, 0.0]), False)
+        if x_beta is not None:
+            points["flap CG"] = (np.array([(c + x_beta) * b, 0.0]), True)
 
-    markers = {"LE": "<", "TE": ">", "EA": "^", "hinge": "v", "CG": "o", "flap CG": "s"}
-    for name, (pt, is_flap) in points.items():
-        pt_d = deform_points(pt, np.array([is_flap]), a, b, c, h, theta, beta)[0]
-        ax.scatter(*pt_d, marker=markers[name], color="k", s=45, zorder=5)
-        ax.annotate(name, pt_d, textcoords="offset points", xytext=(4, 4), fontsize=8)
+        markers = {"EA": "^", "hinge": "v", "CG": "o", "flap CG": "s"}
+        for name, (pt, is_flap) in points.items():
+            pt_d = deform_points(pt, np.array([is_flap]), a, b, c, h, theta, beta)[0]
+            ax.scatter(*pt_d, marker=markers[name], color="k", s=45, zorder=5, label=name)
 
     ax.set_aspect("equal")
     ax.set_xlabel("x")
@@ -156,7 +161,8 @@ if __name__ == "__main__":
     # quick self-test: reference shape vs. an exaggerated deformed shape
     b, a, c, x_theta, x_beta = 1.0, -0.4, 0.6, 0.2, -0.025
     fig, ax = plt.subplots(figsize=(8, 4))
-    plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.5", label="reference")
+    plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.5", label="reference",
+                 show_markers=False)
     plot_airfoil(b, a, c, x_theta, x_beta, h=0.2, theta=0.3, beta=-0.4,
                  ax=ax, show_undeformed=False, color="tab:red", label="deformed")
     ax.legend()

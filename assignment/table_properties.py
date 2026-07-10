@@ -68,14 +68,32 @@ modes = {
     "beta-dominated": coupled_beta_mode,
 }
 
-fig, axes = plt.subplots(len(modes), 1, figsize=(8, 9))
-for ax, (name, mode) in zip(axes, modes.items()):
-    h_over_b, theta, beta = np.real(mode)
-    plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.6", label="reference")
-    plot_airfoil(b, a, c, x_theta, x_beta, h=h_over_b * b, theta=theta, beta=beta,
-                 ax=ax, show_undeformed=False, color="tab:red", label="unit mode")
-    ax.set_title(f"{name} mode (unit eigenvector)")
-    ax.legend(loc="upper right", fontsize=8)
+mode_colors = {
+    "heave-dominated": "tab:red",
+    "theta-dominated": "tab:green",
+    "beta-dominated": "tab:blue",
+}
 
+fig, ax = plt.subplots(figsize=(9, 4.5))
+scaling = 0.5
+plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.6", label="reference",
+             show_markers=False)
+for name, mode in modes.items():
+    h_over_b, theta, beta = np.real(mode)
+    plot_airfoil(b, a, c, x_theta, x_beta,
+                 h=h_over_b * b * scaling, theta=theta * scaling, beta=beta * scaling,
+                 ax=ax, show_undeformed=False, color=mode_colors[name], label=name)
+
+# de-duplicate legend entries (EA/hinge/CG/flap CG markers repeat once per mode),
+# then order shapes (reference + modes) before points (EA/hinge/CG/flap CG)
+handles, labels = ax.get_legend_handles_labels()
+unique = dict(zip(labels, handles))
+point_names = ["EA", "hinge", "CG", "flap CG"]
+shape_names = [l for l in unique if l not in point_names]
+ordered = shape_names + [p for p in point_names if p in unique]
+ax.legend([unique[l] for l in ordered], ordered, loc="center left",
+          bbox_to_anchor=(1.02, 0.5), fontsize=8)
+
+ax.set_title(f"coupled mode shapes ({scaling} * unit eigenvector)")
 fig.tight_layout()
 plt.show()
