@@ -55,7 +55,7 @@ print(np.real(h_freq), np.real(theta_freq), np.real(beta_freq))
 print("coupled eigenvectors: ")
 coupled_heave_mode = eigenvectors[:, h_index]
 coupled_theta_mode = eigenvectors[:, theta_index]
-coupled_beta_mode = eigenvectors[:, beta_index]
+coupled_beta_mode = -eigenvectors[:, beta_index]
 print("coupled eigenvectors: heave_mode, theta_mode, and beta_mode: ")
 print(np.real(coupled_heave_mode), np.real(coupled_theta_mode), np.real(coupled_beta_mode))
 
@@ -96,4 +96,41 @@ ax.legend([unique[l] for l in ordered], ordered, loc="center left",
 
 ax.set_title(f"coupled mode shapes ({scaling} * unit eigenvector)")
 fig.tight_layout()
+
+# --- 3D plot: uncoupled (dotted) vs. coupled (solid) mode vectors in
+# (h/b, theta, beta) DOF space, same color per mode as the airfoil plot ---
+from matplotlib.lines import Line2D
+
+uncoupled_modes = {
+    "heave-dominated": np.array([1.0, 0.0, 0.0]),
+    "theta-dominated": np.array([0.0, 1.0, 0.0]),
+    "beta-dominated": np.array([0.0, 0.0, 1.0]),
+}
+
+fig3d = plt.figure(figsize=(10, 7))
+ax3d = fig3d.add_subplot(111, projection="3d")
+
+for name, vec in uncoupled_modes.items():
+    ax3d.plot([0, vec[0]], [0, vec[1]], [0, vec[2]],
+              color=mode_colors[name], linestyle=":", lw=2)
+
+for name, mode in modes.items():
+    vec = np.real(mode)
+    ax3d.plot([0, vec[0]], [0, vec[1]], [0, vec[2]],
+              color=mode_colors[name], linestyle="-", lw=2)
+
+legend_elements = [Line2D([0], [0], color=mode_colors[name], lw=2, label=name)
+                    for name in modes] + [
+    Line2D([0], [0], color="k", lw=2, linestyle="-", label="coupled"),
+    Line2D([0], [0], color="k", lw=2, linestyle=":", label="uncoupled"),
+]
+ax3d.legend(handles=legend_elements, loc="center left",
+            bbox_to_anchor=(1.05, 0.5), fontsize=8)
+
+ax3d.set_xlabel("h/b")
+ax3d.set_ylabel(r"$\theta$")
+ax3d.set_zlabel(r"$\beta$")
+ax3d.set_title("uncoupled vs. coupled mode vectors")
+
+fig3d.subplots_adjust(right=0.75)
 plt.show()
