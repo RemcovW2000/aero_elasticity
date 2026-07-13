@@ -59,13 +59,33 @@ coupled_beta_mode = -eigenvectors[:, beta_index]
 print("coupled eigenvectors: heave_mode, theta_mode, and beta_mode: ")
 print(np.real(coupled_heave_mode), np.real(coupled_theta_mode), np.real(coupled_beta_mode))
 
-# --- plot the unit deformation of each coupled mode (eigenvector * 1) ---
-# note: the state vector is (h/b, theta, beta) per Eq. (2.9) of the paper,
-# so eigenvector component 0 is h/b, not h -> multiply by b to get h.
+# --- table data: uncoupled vs coupled frequencies and coupled eigenvectors ---
+uncoupled_freqs = {"heave-dominated": omega_h,
+                   "theta-dominated": omega_theta,
+                   "beta-dominated": omega_beta}
+coupled_freqs = {"heave-dominated": np.real(h_freq),
+                 "theta-dominated": np.real(theta_freq),
+                 "beta-dominated": np.real(beta_freq)}
+
 modes = {
     "heave-dominated": coupled_heave_mode,
     "theta-dominated": coupled_theta_mode,
     "beta-dominated": coupled_beta_mode,
+}
+
+print("\ntable: mode | omega_uncoupled | omega_coupled | eigenvector (h/b, theta, beta)")
+for name in modes:
+    v = np.real(modes[name])
+    print(f"{name:16s} | {uncoupled_freqs[name]:7.2f} | {coupled_freqs[name]:7.2f} | "
+          f"({v[0]:+.3f}, {v[1]:+.3f}, {v[2]:+.3f})")
+
+# --- plot the coupled vs uncoupled shape of each mode (eigenvector * scaling) ---
+# note: the state vector is (h/b, theta, beta) per Eq. (2.9) of the paper,
+# so eigenvector component 0 is h/b, not h -> multiply by b to get h.
+uncoupled_modes = {
+    "heave-dominated": np.array([1.0, 0.0, 0.0]),
+    "theta-dominated": np.array([0.0, 1.0, 0.0]),
+    "beta-dominated": np.array([0.0, 0.0, 1.0]),
 }
 
 mode_colors = {
@@ -74,63 +94,32 @@ mode_colors = {
     "beta-dominated": "tab:blue",
 }
 
-fig, ax = plt.subplots(figsize=(9, 4.5))
+fig, axes = plt.subplots(3, 1, sharex=True, sharey=True, figsize=(7, 7.5))
 scaling = 0.5
-plot_airfoil(b, a, c, x_theta, x_beta, ax=ax, color="0.6", label="reference",
-             show_markers=False)
-for name, mode in modes.items():
-    h_over_b, theta, beta = np.real(mode)
+for ax, name in zip(axes, modes):
+    # uncoupled shape (the first call also draws the dashed reference outline)
+    h_u, theta_u, beta_u = uncoupled_modes[name] * scaling
     plot_airfoil(b, a, c, x_theta, x_beta,
-                 h=h_over_b * b * scaling, theta=theta * scaling, beta=beta * scaling,
-                 ax=ax, show_undeformed=False, color=mode_colors[name], label=name)
+                 h=h_u * b, theta=theta_u, beta=beta_u,
+                 ax=ax, color="0.45", label="uncoupled", show_markers=False)
+    # coupled shape
+    h_c, theta_c, beta_c = np.real(modes[name]) * scaling
+    plot_airfoil(b, a, c, x_theta, x_beta,
+                 h=h_c * b, theta=theta_c, beta=beta_c,
+                 ax=ax, show_undeformed=False, color=mode_colors[name], label="coupled")
+    ax.set_title(name, fontsize=10)
 
-# de-duplicate legend entries (EA/hinge/CG/flap CG markers repeat once per mode),
-# then order shapes (reference + modes) before points (EA/hinge/CG/flap CG)
-handles, labels = ax.get_legend_handles_labels()
+# shared legend on the first subplot (marker entries EA/hinge/CG/flap CG appear
+# once, on the coupled shape), shapes ordered before points
+handles, labels = axes[0].get_legend_handles_labels()
 unique = dict(zip(labels, handles))
 point_names = ["EA", "hinge", "CG", "flap CG"]
 shape_names = [l for l in unique if l not in point_names]
 ordered = shape_names + [p for p in point_names if p in unique]
-ax.legend([unique[l] for l in ordered], ordered, loc="center left",
-          bbox_to_anchor=(1.02, 0.5), fontsize=8)
+axes[0].legend([unique[l] for l in ordered], ordered, loc="center left",
+               bbox_to_anchor=(1.02, 0.5), fontsize=8)
 
-ax.set_title(f"coupled mode shapes ({scaling} * unit eigenvector)")
+fig.suptitle(f"coupled vs uncoupled mode shapes ({scaling} * unit eigenvector)")
 fig.tight_layout()
-
-# --- 3D plot: uncoupled (dotted) vs. coupled (solid) mode vectors in
-# (h/b, theta, beta) DOF space, same color per mode as the airfoil plot ---
-from matplotlib.lines import Line2D
-
-uncoupled_modes = {
-    "heave-dominated": np.array([1.0, 0.0, 0.0]),
-    "theta-dominated": np.array([0.0, 1.0, 0.0]),
-    "beta-dominated": np.array([0.0, 0.0, 1.0]),
-}
-
-fig3d = plt.figure(figsize=(10, 7))
-ax3d = fig3d.add_subplot(111, projection="3d")
-
-for name, vec in uncoupled_modes.items():
-    ax3d.plot([0, vec[0]], [0, vec[1]], [0, vec[2]],
-              color=mode_colors[name], linestyle=":", lw=2)
-
-for name, mode in modes.items():
-    vec = np.real(mode)
-    ax3d.plot([0, vec[0]], [0, vec[1]], [0, vec[2]],
-              color=mode_colors[name], linestyle="-", lw=2)
-
-legend_elements = [Line2D([0], [0], color=mode_colors[name], lw=2, label=name)
-                    for name in modes] + [
-    Line2D([0], [0], color="k", lw=2, linestyle="-", label="coupled"),
-    Line2D([0], [0], color="k", lw=2, linestyle=":", label="uncoupled"),
-]
-ax3d.legend(handles=legend_elements, loc="center left",
-            bbox_to_anchor=(1.05, 0.5), fontsize=8)
-
-ax3d.set_xlabel("h/b")
-ax3d.set_ylabel(r"$\theta$")
-ax3d.set_zlabel(r"$\beta$")
-ax3d.set_title("uncoupled vs. coupled mode vectors")
-
-fig3d.subplots_adjust(right=0.75)
+fig.savefig("coupled_uncoupled_modes.pdf")
 plt.show()
