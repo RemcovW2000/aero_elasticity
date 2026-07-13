@@ -1,23 +1,15 @@
-"""
-Animation of the flutter mode (not part of the report).
-
-Renders one full cycle of the purely harmonic flutter motion,
-    x(t) = Re(v_f exp(i omega_f t)) * scaling,
-as a gif, using the same airfoil visualisation as the mode plots.
-"""
+# animation of the purely harmonic flutter motion x(t) = Re(v_f exp(i omega_f t));
+# not part of the report
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 
 from state_space import flutter_speed
 from flutter_analysis import flutter_mode, FIG_DIR
-from aero_matrices import PARAMS, a, b, c
+from table_properties import a, b, c, x_theta, x_beta
 from plot_airfoil import plot_airfoil
 
-b_val, a_val, c_val = float(PARAMS[b]), float(PARAMS[a]), float(PARAMS[c])
-x_theta, x_beta = 0.2, -0.025
 scaling = 0.5
-
 V_f = flutter_speed()
 lam_f, v_f = flutter_mode(V_f)
 omega_f = lam_f.imag
@@ -30,8 +22,8 @@ def draw(frame):
     phase = 2 * np.pi * frame / n_frames
     ax.clear()
     h_p, theta_p, beta_p = np.real(v_f * np.exp(1j * phase)) * scaling
-    plot_airfoil(b_val, a_val, c_val, x_theta, x_beta,
-                 h=h_p * b_val, theta=theta_p, beta=beta_p,
+    plot_airfoil(b, a, c, x_theta, x_beta,
+                 h=h_p * b, theta=theta_p, beta=beta_p,
                  ax=ax, show_undeformed=True, show_markers=True,
                  color="tab:green")
     ax.set_xlim(-1.2, 1.2)
