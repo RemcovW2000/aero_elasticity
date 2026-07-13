@@ -1,10 +1,15 @@
 """
 Parameters from table 1 of paper.
 """
+from pathlib import Path
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from plot_airfoil import plot_airfoil
+
+FIG_DIR = Path(__file__).parent / "figures"
+FIG_DIR.mkdir(exist_ok=True)
 
 omega_h = 50 # rad/s
 omega_theta = 100 # rad/s
@@ -121,5 +126,5 @@ axes[0].legend([unique[l] for l in ordered], ordered, loc="center left",
 
 fig.suptitle(f"coupled vs uncoupled mode shapes ({scaling} * unit eigenvector)")
 fig.tight_layout()
-fig.savefig("coupled_uncoupled_modes.pdf")
+fig.savefig(FIG_DIR / "coupled_uncoupled_modes.pdf")
 plt.show()

@@ -12,12 +12,17 @@ with its eigenvector at the previous speed. The lag-state eigenvalues are
 real and their eigenvectors have little displacement content, so they are
 never selected.
 """
+from pathlib import Path
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from state_space import assemble_A, flutter_speed
 from aero_matrices import PARAMS, a, b, c
 from plot_airfoil import plot_airfoil
+
+FIG_DIR = Path(__file__).parent / "figures"
+FIG_DIR.mkdir(exist_ok=True)
 
 # state ordering of z = [x_dot, x, w]: displacements are states 3..5
 DISP = slice(3, 6)
@@ -131,7 +136,7 @@ if __name__ == "__main__":
     ax_d.set_ylabel(r"$\zeta = -\mathrm{Re}(\lambda)/|\lambda|$ [-]")
     ax_d.set_xlabel("V [m/s]")
     fig.tight_layout()
-    fig.savefig("flutter_diagram.pdf")
+    fig.savefig(FIG_DIR / "flutter_diagram.pdf")
 
     # flutter mode shape, plotted at several phase instants of the cycle
     # (instants half a cycle apart are mirror images, so 0..2pi/3 suffices)
@@ -167,6 +172,6 @@ if __name__ == "__main__":
               bbox_to_anchor=(1.02, 0.5), fontsize=8)
     ax.set_title(f"flutter mode at $V_f$ = {V_f:.0f} m/s ({scaling} * unit eigenvector)")
     fig.tight_layout()
-    fig.savefig("flutter_mode.pdf")
+    fig.savefig(FIG_DIR / "flutter_mode.pdf")
 
     plt.show()

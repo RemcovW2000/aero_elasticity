@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 
 from state_space import flutter_speed
-from flutter_analysis import flutter_mode
+from flutter_analysis import flutter_mode, FIG_DIR
 from aero_matrices import PARAMS, a, b, c
 from plot_airfoil import plot_airfoil
 
@@ -42,5 +42,5 @@ def draw(frame):
 
 
 anim = FuncAnimation(fig, draw, frames=n_frames)
-anim.save("flutter_mode.gif", writer=PillowWriter(fps=20), dpi=90)
+anim.save(FIG_DIR / "flutter_mode.gif", writer=PillowWriter(fps=20), dpi=90)
 print("saved flutter_mode.gif")
